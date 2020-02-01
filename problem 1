@@ -1,0 +1,29 @@
+# problem 1
+library(tidyverse)
+library(ggplot2)
+
+summary(ABIA)
+
+sample <- ABIA
+
+####drop Arrdelay and Depdelay's NA######
+sample[, 15][is.na(sample[ , 15])]=0
+sample[, 16][is.na(sample[ , 16])]=0
+
+mydata <-sample %>%
+  mutate(sumdelay = ArrDelay + DepDelay)  %>%
+  select(Year, Month, DayofMonth, DayOfWeek, DepTime, sumdelay) %>%
+  group_by(DepTime) %>%
+  summarize(T.delay = sum(sumdelay), Count = n()) 
+
+mydata <- mydata %>%
+  mutate(avedelay = T.delay/Count)
+
+count(mydata, "DepTime")
+table(mydata$DepTime)
+data.frame(table(mydata$DepTime))
+
+ggplot(data = mydata) + 
+  geom_point(mapping = aes(x = DepTime, y = avedelay), color='darkgrey') +
+  ylim(-50, 200)
+

@@ -79,3 +79,22 @@ ggplot(data=daydata , aes(x=DayOfWeek, y=avedelay)) +
   geom_bar(stat="identity", fill="steelblue")+
   geom_text(aes(label=avedelay), vjust=-0.3, size=3.5)+
   theme_minimal()
+
+############################################# day of month minimize delay
+
+monthdata <- sample %>%
+  mutate(sumdelay = DepDelay) %>%
+  group_by(DayofMonth) %>%
+  summarize(avedelay = mean(sumdelay))
+ggplot(data=monthdata , aes(x=DayofMonth, y=avedelay)) +
+  geom_bar(stat="identity", fill="steelblue")+
+  theme_minimal()
+
+#############################################  month minized delay
+monthdata <- sample %>%
+  mutate(sumdelay = DepDelay) %>%
+  group_by(Month) %>%
+  summarize(avedelay = mean(sumdelay))
+ggplot(data=monthdata , aes(x=Month, y=avedelay)) +
+  geom_bar(stat="identity", fill="steelblue")+
+  theme_minimal()

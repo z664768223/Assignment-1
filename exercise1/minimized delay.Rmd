@@ -1,0 +1,216 @@
+---
+title: "Best time to minimize delay"
+output:
+  html_document:
+    df_print: paged
+---
+
+## Introduction
+We were given data in ABIA.csv, which contains information about all flights' that either departed from or landed at Austin-Bergstrom Interational in 2018 and after conducted careful analysis, we made a prediction on which time to travel is least possible to suffer delay.
+
+## Assumption
+In order to find the best time to minimize delay, we assumed that the departure delay to represent the delay time of an flight. We made this assumption since a flight with a departure delay will be likely to have a arrival delay and made this assumption can avoid an over estimation of delay time on each flight. Although the flight with departure delay is still possible to arrive on time, this is caused by unique climate phenomenon like the change of wind speed and direction which is not possible to predict at this moment.
+
+```{r, include = FALSE} 
+library(tidyverse)
+library(ggplot2)
+sample <-read.csv("ABIA.csv")
+####drop Arrdelay and Depdelay's NA
+sample[, 15][is.na(sample[ , 15])]=0
+sample[, 16][is.na(sample[ , 16])]=0
+
+#### data cleaning 
+sample <- sample %>%
+  mutate(Month=as.factor(Month), DayofMonth=as.factor(DayofMonth),DayOfWeek=as.factor(DayOfWeek))
+
+```
+
+## Best time of the day
+We tried to find in average what time of the day is likely to suffer least time of delay. We computed the average flight delay of each time.
+
+```{r, echo = FALSE}
+### Average Delay on each time of the day
+mydata1 <-sample %>%
+  mutate(sumdelay = DepDelay)  %>%
+  select(Year, Month, DayofMonth, DayOfWeek, DepTime, sumdelay) %>%
+  group_by(DepTime) %>%
+  summarize(T.delay = sum(sumdelay), Count = n()) 
+
+mydata1 <- mydata1 %>%
+  mutate(avedelay = T.delay/Count)
+
+ggplot(data = mydata1) + 
+  geom_point(mapping = aes(x = DepTime, y = avedelay), color='darkgrey')
+
+```
+
+After verfied from the Austin-Bergstrom Interational offical website, the last flight that departure from 11:59 p.m. This tells that all flight departure after 11 p.m. was delay. From the plot, it is obvious that flight departured from 5 a.m. to 15 p.m. suffered least delay.
+
+```{r, echo = FALSE}
+### Time frame from 5 am to 3 pm
+
+ggplot(data = mydata1) + 
+  geom_point(mapping = aes(x = DepTime, y = avedelay), color='darkgrey') +
+  xlim(500, 1500)+ylim(-15,20)
+```
+
+If we focusing on the time frame of this period, we could tell flight that departure before 8 a.m. is the best option to minimize delay.
+
+## Best day of the year
+First, we computed the monthly average flight delay in 2008.
+```{r, echo = FALSE}
+monthdata <- sample %>%
+  mutate(sumdelay = DepDelay) %>%
+  group_by(Month) %>%
+  summarize(avedelay = mean(sumdelay))
+ggplot(data=monthdata , aes(x=Month, y=avedelay)) +
+  geom_bar(stat="identity", fill="steelblue")+
+  theme_minimal()
+```
+
+From the diagram, it is clear that in average, the flight departure in September, October, and November suffered least time of delay. Then we analyzed each months seprately to detect if there exists cetain partern.
+
+## Best day of the year - September
+
+Focusing on the data from September, aftered computed the average delay on each day of September, we filtered out days with average delay that greater than 1.5 miniutes.
+
+```{r, echo = FALSE}
+sepdata <- sample %>%
+  filter(Month == '9') %>%
+  mutate(sumdelay = DepDelay) %>%
+  group_by(DayofMonth) %>%
+  summarize(avedelay = mean(sumdelay)) 
+
+sepdata <- sepdata  %>%
+  filter(avedelay <= 1.5)
+
+ggplot(data=sepdata , aes(x=DayofMonth, y=avedelay)) +
+  geom_bar(stat="identity", fill="steelblue", width = 0.7) + labs( title = "September") +
+  theme_minimal()
+
+sepweekdata <- sample %>%
+  filter(Month == '9') %>%
+  mutate(sumdelay = DepDelay) %>%
+  group_by(DayofMonth,DayOfWeek) %>%
+  summarize(avedelay = mean(sumdelay))
+
+sepweekdata <- sepweekdata  %>%
+  filter(avedelay <= 1.5) %>%
+  group_by(DayOfWeek) %>%
+  summarize(Countnum = n(),avedelay = mean(avedelay)) 
+
+head(sepweekdata)
+
+ggplot(data=sepweekdata , aes(x=DayOfWeek, y=avedelay)) +
+  geom_bar(stat="identity", fill="steelblue", width = 0.7)+labs( title = "September")+
+  theme_minimal()
+```
+
+Among those days, we paired each of them to their actual day of week. Given the data, Tuesday and Saturday has the highest frequency and lowest average delay in September.
+
+## Best day of the year - October and November
+
+## October
+```{r, echo = FALSE}
+octdata <- sample %>%
+  filter(Month == '10') %>%
+  mutate(sumdelay = DepDelay) %>%
+  group_by(DayofMonth) %>%
+  summarize(avedelay = mean(sumdelay)) 
+
+octdata <- octdata  %>%
+  filter(avedelay <= 1.5)
+
+ggplot(data=octdata , aes(x=DayofMonth, y=avedelay)) +
+  geom_bar(stat="identity", fill="steelblue", width = 0.7)+labs( title = "October")+
+  theme_minimal()
+  
+octweekdata <- sample %>%
+  filter(Month == '10') %>%
+  mutate(sumdelay = DepDelay) %>%
+  group_by(DayofMonth,DayOfWeek) %>%
+  summarize(avedelay = mean(sumdelay))
+
+octweekdata <- octweekdata %>%
+  filter(avedelay <= 1.5)
+
+head(octweekdata)
+
+ggplot(data=octweekdata , aes(x=DayOfWeek, y=avedelay)) +
+  geom_bar(stat="identity", fill="steelblue", width = 0.7)+labs( title = "October")+
+  theme_minimal()
+```
+
+## Novermber
+
+```{r, echo = FALSE}
+
+novdata <- sample %>%
+  filter(Month == '11') %>%
+  mutate(sumdelay = DepDelay) %>%
+  group_by(DayofMonth) %>%
+  summarize(avedelay = mean(sumdelay)) 
+
+novdata <- novdata  %>%
+  filter(avedelay <= 1.5)
+
+ggplot(data=novdata , aes(x=DayofMonth, y=avedelay)) +
+  geom_bar(stat="identity", fill="steelblue", width = 0.7)+labs( title = "November")+
+  theme_minimal()
+
+novweekdata <- sample %>%
+  filter(Month == '11') %>%
+  mutate(sumdelay = DepDelay) %>%
+  group_by(DayofMonth,DayOfWeek) %>%
+  summarize(avedelay = mean(sumdelay))
+
+novweekdata <- novweekdata  %>%
+  filter(avedelay <= 1.5) %>%
+  group_by(DayOfWeek) %>%
+  summarize(Countnum = n(),avedelay = mean(avedelay)) 
+
+head(novweekdata)
+
+ggplot(data=novweekdata , aes(x=DayOfWeek, y=avedelay)) +
+  geom_bar(stat="identity", fill="steelblue", width = 0.7)+labs( title = "November")+
+  theme_minimal()
+
+```
+
+Based on using the same method to analyze the data from October and November, In average, flights departure on Saturday faced least amount of delay with a high frequency.
+
+## Three month together
+
+In the end, we combined the data from these three month and implmented the same method of analysis. 
+```{r, echo = FALSE}
+overalldata <- sample %>%
+  filter((Month == '11') |(Month == '10') | (Month == '9')) %>%
+  mutate(sumdelay = DepDelay) %>%
+  group_by(DayofMonth,DayOfWeek) %>%
+  summarize(avedelay = mean(sumdelay))
+
+overalldata <- overalldata %>%
+  filter(avedelay <=1.5)
+
+overalldata <-overalldata %>%
+  group_by(DayOfWeek) %>%
+  summarize(Counts = n(),avedelay = mean(avedelay)) 
+
+ggplot(data=overalldata , aes(x=DayOfWeek, y=Counts)) +
+  geom_bar(stat="identity", fill="steelblue", width = 0.7)+
+  theme_minimal()
+
+```
+
+The first graph tells that among these three month, for all days that flight in average faced a delay which was less than 1.5 minutes, 6 days of them are Saturday and 6 times is the highest frequency among these three month.
+```{r}
+ggplot(data=overalldata , aes(x=DayOfWeek, y=avedelay)) +
+  geom_bar(stat="identity", fill="steelblue", width = 0.7)+
+  theme_minimal()
+```
+
+The second graph shows among those days that flight in average faced least time of delay, Saturday faced the least among of delay of all days of week. This is reason since few people travels for both business and tourism on Saturday.
+
+## Conclusion
+
+In order to minimized the time of delay, we suggested that book the flight that departure in the morning befor 8, on Saturday and in September, October or November.

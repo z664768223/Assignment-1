@@ -131,13 +131,15 @@ octweekdata <- sample %>%
   group_by(DayofMonth,DayOfWeek) %>%
   summarize(avedelay = mean(sumdelay))
 
-octweekdata <- octweekdata %>%
-  filter(avedelay <= 1.5)
+octweekdata <- octweekdata  %>%
+  filter(avedelay <= 1.5) %>%
+  group_by(DayOfWeek) %>%
+  summarize(Count.number = n(),avedelay = mean(avedelay)) 
 
 head(octweekdata)
 
 ggplot(data=octweekdata , aes(x=DayOfWeek, y=avedelay)) +
-  geom_bar(stat="identity", fill="steelblue", width = 0.7)+labs( title = "October")+
+  geom_bar(stat="identity", fill="steelblue", width = 0.7)+labs( title = "September")+
   theme_minimal()
 ```
 
@@ -203,7 +205,7 @@ ggplot(data=overalldata , aes(x=DayOfWeek, y=Counts)) +
 ```
 
 The first graph tells that among these three month, for all days that flight in average faced a delay which was less than 1.5 minutes, 6 days of them are Saturday and 6 times is the highest frequency among these three month.
-```{r}
+```{r， echo = FALSE}
 ggplot(data=overalldata , aes(x=DayOfWeek, y=avedelay)) +
   geom_bar(stat="identity", fill="steelblue", width = 0.7)+
   theme_minimal()

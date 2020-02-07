@@ -1,0 +1,214 @@
+## Introduction
+The data set in ABIA.csv, contains information about all flights' that either departed from or landed at Austin-Bergstrom Interational in 2008 and after conducting careful analysis, we make a prediction on the best time to travel in order to suffer less from the flight delay.
+
+## Assumption
+Before starting to set up a model, we assume that the total delay time of a flight is represented by the departure delay time. We made this assumption since a flight with a departure delay will be likely to have an arrival delay and our assumption can avoid an over-estimation of delay time on each flight. Although the flight with departure delay is still possible to arrive on time, this is caused by unique climate phenomenon like the change of wind speed and direction, which is not possible to predict at this moment.
+
+```{r, include = FALSE} 
+library(tidyverse)
+library(ggplot2)
+sample <-read.csv("C:/Users/Lydia Liu/Desktop/data mining/ABIA.csv.txt")
+####drop Arrdelay and Depdelay's NA
+sample[, 15][is.na(sample[ , 15])]=0
+sample[, 16][is.na(sample[ , 16])]=0
+
+#### data cleaning 
+sample <- sample %>%
+  mutate(Month=as.factor(Month), DayofMonth=as.factor(DayofMonth),DayOfWeek=as.factor(DayOfWeek))
+
+```
+
+## Best time of the day
+First of all, we try to decide when is the best time to fly in a day. So we compute the average flight delay of each time. Our graph of departure time versus average delay time is presented below.
+
+```{r, echo = FALSE}
+### Average Delay on each time of the day
+mydata1 <-sample %>%
+  mutate(sumdelay = DepDelay)  %>%
+  select(Year, Month, DayofMonth, DayOfWeek, DepTime, sumdelay) %>%
+  group_by(DepTime) %>%
+  summarize(T.delay = sum(sumdelay), Count = n()) 
+
+mydata1 <- mydata1 %>%
+  mutate(avedelay = T.delay/Count)
+
+mydata1[, 1][is.na(mydata1[ , 1])]=0
+mydata1[, 2][is.na(mydata1[ , 2])]=0
+mydata1[, 4][is.na(mydata1[ , 4])]=0
+
+ggplot(data = mydata1) + 
+  geom_point(mapping = aes(x = DepTime, y = avedelay), color='darkgrey') +
+  labs(title="Average delay time for different times in a day", x="Departure time", y="Average delay time")
+
+```
+
+
+After checking from the Austin-Bergstrom Interational offical website, the last flight that departs in a day is at 23:59. This tells us that all the flights after 24:00 will be delayed. From our plot, it is obvious that the flights departing from 5:00 to 15:00 have shorter delay time. Hence, we only keep the flights that depart between 5:00 and 15:00 to adjust the plot. As we can see in the graph below, choosing the flights that depart after 5:00 and also before 8:00 is the best option to minimize the delay. (The warning we have here is because we remove the flights before 5:00 and after 15:00.)
+
+```{r, echo = FALSE}
+### Time frame from 5 am to 3 pm
+
+ggplot(data = mydata1) + 
+  geom_point(mapping = aes(x = DepTime, y = avedelay), color='darkgrey') +
+  xlim(500, 1500)+ylim(-15,20) +
+  labs(title="Average delay time for different times in a day", x="Departure time", y="Average delay time")
+```
+
+
+## Best day of the year
+Secondly, we compute the monthly average flight delay time in 2008. From the diagram, it is clear that in average, the flights departing in September, October, and November suffered the least from delay in 2008. Then we decide to analyze each month seprately to figure out whether there exists a cetain partern in these three months.
+```{r, echo = FALSE}
+monthdata <- sample %>%
+  mutate(sumdelay = DepDelay) %>%
+  group_by(Month) %>%
+  summarize(avedelay = mean(sumdelay))
+ggplot(data=monthdata , aes(x=Month, y=avedelay)) +
+  geom_bar(stat="identity", fill="steelblue")+
+  labs(title="Average delay time for different months in a year", x="Month", y="Average delay time") +
+  theme_minimal()
+```
+
+### Best day of the year - September
+
+Focusing on the subdataset of September, after computing the average delay time for each day of September, we remove the days with average delay time larger than 1.5 miniutes. Graph 1 below is a plot of the days with average delay time smaller than 1.5 minutes versus their actual average delay time. For those days, we pair each of them to their actual day of the week. The table under graph 1 is the count number of day of week we have in the existing data set. To be more specific, we draw another graph to show the average delay time in these four weekdays we have. In conclusion, Tuesday and Saturday have the highest probability of having a delay time less than 0.2 mins in September. They are possibly the good days to fly in September.
+
+```{r, echo = FALSE}
+sepdata <- sample %>%
+  filter(Month == '9') %>%
+  mutate(sumdelay = DepDelay) %>%
+  group_by(DayofMonth) %>%
+  summarize(avedelay = mean(sumdelay)) 
+
+sepdata <- sepdata  %>%
+  filter(avedelay <= 1.5)
+
+ggplot(data=sepdata , aes(x=DayofMonth, y=avedelay)) +
+  geom_bar(stat="identity", fill="steelblue", width = 0.7) + 
+  labs( title = "Graph1---Average delay time for each day in September", x="Day of Month", y="Average delay time") +
+  theme_minimal()
+
+sepweekdata <- sample %>%
+  filter(Month == '9') %>%
+  mutate(sumdelay = DepDelay) %>%
+  group_by(DayofMonth,DayOfWeek) %>%
+  summarize(avedelay = mean(sumdelay))
+
+sepweekdata <- sepweekdata  %>%
+  filter(avedelay <= 1.5) %>%
+  group_by(DayOfWeek) %>%
+  summarize(Countnum = n(),avedelay = mean(avedelay)) 
+
+head(sepweekdata)
+
+ggplot(data=sepweekdata , aes(x=DayOfWeek, y=avedelay)) +
+  geom_bar(stat="identity", fill="steelblue", width = 0.7)+
+  labs( title = "Average delay time for good days to fly in a week: September", x="Day of Week", y="Average delay time")+
+  theme_minimal()
+```
+
+### Best day of the year - October and November
+Then, we use the same method to analyze the data from October and November.
+
+#### October:
+As for October, Mondays, Tuesdays, Fridays and Saturdays have the highest frequnency of being the good days to fly in October. Especially on Saturday, the flights will be likely to depart 0.75 minute ahead.
+```{r, echo = FALSE}
+octdata <- sample %>%
+  filter(Month == '10') %>%
+  mutate(sumdelay = DepDelay) %>%
+  group_by(DayofMonth) %>%
+  summarize(avedelay = mean(sumdelay)) 
+
+octdata <- octdata  %>%
+  filter(avedelay <= 1.5)
+
+ggplot(data=octdata , aes(x=DayofMonth, y=avedelay)) +
+  geom_bar(stat="identity", fill="steelblue", width = 0.7)+labs(title = "Average delay time for each day in October", x="Day of Month", y="Average delay time")+
+  theme_minimal()
+  
+octweekdata <- sample %>%
+  filter(Month == '10') %>%
+  mutate(sumdelay = DepDelay) %>%
+  group_by(DayofMonth,DayOfWeek) %>%
+  summarize(avedelay = mean(sumdelay))
+
+octweekdata <- octweekdata  %>%
+  filter(avedelay <= 1.5) %>%
+  group_by(DayOfWeek) %>%
+  summarize(Countnum = n(),avedelay = mean(avedelay)) 
+head(octweekdata)
+ggplot(data=octweekdata , aes(x=DayOfWeek, y=avedelay)) +
+  geom_bar(stat="identity", fill="steelblue", width = 0.7)+labs(title = "Average delay time for good days to fly in a week: October", x="Day of Week", y="Average delay time")+
+  theme_minimal()
+```
+
+#### Novermber:
+As for November, Mondays and Tuesdays have the highest frequnency of being the good days to fly in November. Saturdays are also good chioces to fly. From our graph, Mondays on November have pretty small delay time while on Tuesday and Saturdays, flights are likely to fly ahead of time. So Tuesdays and Saturdays are good choices of day to fly in November. 
+
+```{r, echo = FALSE}
+
+novdata <- sample %>%
+  filter(Month == '11') %>%
+  mutate(sumdelay = DepDelay) %>%
+  group_by(DayofMonth) %>%
+  summarize(avedelay = mean(sumdelay)) 
+
+novdata <- novdata  %>%
+  filter(avedelay <= 1.5)
+
+ggplot(data=novdata , aes(x=DayofMonth, y=avedelay)) +
+  geom_bar(stat="identity", fill="steelblue", width = 0.7)+labs( title = "Average delay time for each day in November", x="Day of Month", y="Average delay time")+
+  theme_minimal()
+
+novweekdata <- sample %>%
+  filter(Month == '11') %>%
+  mutate(sumdelay = DepDelay) %>%
+  group_by(DayofMonth,DayOfWeek) %>%
+  summarize(avedelay = mean(sumdelay))
+novweekdata <- novweekdata  %>%
+  filter(avedelay <= 1.5) %>%
+  group_by(DayOfWeek) %>%
+  summarize(Countnum = n(),avedelay = mean(avedelay)) 
+head(novweekdata)
+ggplot(data=novweekdata , aes(x=DayOfWeek, y=avedelay)) +
+  geom_bar(stat="identity", fill="steelblue", width = 0.7)+labs(title = "Average delay time for good days to fly in a week: November", x="Day of Week", y="Average delay time")+
+  theme_minimal()
+```
+
+To conclude our results above, flights departs on Saturday among these three months have high frequency of minimizing the delay time. People fly on Saturdays in these three months are more likely to suffer less from the flight delay.
+
+## Three month together
+
+Last but not the least, we combine the data sets of these three months and double check our results. The graph below shows us that among these three months, Monday and Saturday have the largest probability for short delay time.
+
+```{r, echo = FALSE}
+overalldata <- sample %>%
+  filter((Month == '11') |(Month == '10') | (Month == '9')) %>%
+  mutate(sumdelay = DepDelay) %>%
+  group_by(DayofMonth,DayOfWeek) %>%
+  summarize(avedelay = mean(sumdelay))
+
+overalldata <- overalldata %>%
+  filter(avedelay <=1.5)
+
+overalldata <-overalldata %>%
+  group_by(DayOfWeek) %>%
+  summarize(Counts = n(),avedelay = mean(avedelay)) 
+
+ggplot(data=overalldata , aes(x=DayOfWeek, y=Counts)) +
+  geom_bar(stat="identity", fill="steelblue", width = 0.7)+
+  labs(title = "Frequency of having the less delayed fights: Three months combination", x="Day of Week", y="Average delay time") +
+  theme_minimal()
+
+```
+
+In order to make an accurate conclusion, we compare the average delay time in the days we have selected above. The graph below shows that among those days Saturdays have the least delay flights and are likely to depart 0.6 minute ahead on average. We believe that this is because few people will fly for business or travelling on Saturdays.
+```{r, echo=FALSE}
+ggplot(data=overalldata , aes(x=DayOfWeek, y=avedelay)) +
+  geom_bar(stat="identity", fill="steelblue", width = 0.7)+
+  labs(title = "Average delay time for good days to fly in a week: Three months combination", x="Day of Week", y="Average delay time")+
+  theme_minimal()
+```
+
+## Conclusion
+
+To sum up, in order to minimize the time of delay, we suggest that people book the flight which departs in the morning after 5 a.m and befor 8 a.m, on Saturdays in September, October or November.

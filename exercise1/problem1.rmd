@@ -32,10 +32,6 @@ mydata1 <-sample %>%
 mydata1 <- mydata1 %>%
   mutate(avedelay = T.delay/Count)
 
-mydata1[, 1][is.na(mydata1[ , 1])]=0
-mydata1[, 2][is.na(mydata1[ , 2])]=0
-mydata1[, 4][is.na(mydata1[ , 4])]=0
-
 ggplot(data = mydata1) + 
   geom_point(mapping = aes(x = DepTime, y = avedelay), color='darkgrey') +
   labs(title="Average delay time for different times in a day", x="Departure time", y="Average delay time")

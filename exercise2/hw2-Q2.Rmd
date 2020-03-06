@@ -1,0 +1,80 @@
+# Exercise 2 - Question 2
+
+### Xiaoyu Liu, Yihao Zhang
+
+Given the dataset consisting of 987 screening mammograms administered at a hospital in Seattle from five radiologists, we are going to examine the performance of the radiologists. The dataset includes 8 variables in total. Radiologist is an indicator. There are two different outcome variables called cancer and recall. The rest of the variables are risk factors of mammograms, which are age, history, symptoms, menopause, and density. Firstly, we need to find whether there are some radiologists more clinically conservative. Secondly, try to find the important clinical risk factors if radiologists need to make recall decisions.
+
+## First Question
+To compare the conservative degree of different radiologists, we need to see their recall decisions upon the same clinical case, which means that all of them need to see the same patient theoretically. It is kind of impossible for a patient to go to see 5 different radiologists. However, we can find our best model for the recall decision and compare the coefficients of the different radiologists. The larger the coefficient of a radiologist is, the more conservative he/she is in recalling patients.
+We tried four different models as listed below. We added interaction terms in Model 2 ~ Model 4. For example, in Model 2, we added the age*menopause because older women have a larger possibility to be menopaused and then a larger possibility to be recalled by the hospital. 
+
+***Model 1:***
+recall = $\beta_{0}$ + $\beta_{1}$radiologist + $\beta_{2}$age + $\beta_{3}$history + $\beta_{4}$symptoms + $\beta_{5}$menopause + $\beta_{6}$density
+
+***Model 2:***
+recall = $\beta_{0}$ + $\beta_{1}$radiologist + $\beta_{2}$age + $\beta_{3}$history + $\beta_{4}$symptoms + $\beta_{5}$menopause + $\beta_{6}$density + $\beta_{7}$age*menopause
+
+***Model 3:***
+recall = $\beta_{0}$ + $\beta_{1}$radiologist + $\beta_{2}$age + $\beta_{3}$history + $\beta_{4}$symptoms + $\beta_{5}$menopause + $\beta_{6}$density 
++ $\beta_{7}$age*symptoms
+
+***Model 4:***
+recall = $\beta_{0}$ + $\beta_{1}$radiologist + $\beta_{2}$age + $\beta_{3}$history + $\beta_{4}$symptoms + $\beta_{5}$menopause + $\beta_{6}$density 
++ $\beta_{7}$density*symptoms
+
+To find our best model, we calculated the average out-of-sample RMSE of these four models for 100 different training/test sets. The results are shown below. Model 4 has the lowest RMSE of these four models. The reason why we add density*symptoms interaction term in Model 4 is that patients who have more cancer symptoms will also possibly have larger breast densities, so they will be more likely to be recalled. Hence, we use Model 4 to build our classification model. 
+
+```{r echo=FALSE}
+library(knitr)
+C = matrix(c(0.3537280,0.3555784,0.3554729,0.3536146),nrow=1,ncol=4,byrow=TRUE)
+D = c('Model 1','Model 2','Model 3','Model 4')
+kable(C, caption='Table 1: RMSE of different models', align= 'c', col.names = D)
+```
+
+The coefficients of the model 4 see Table 2. Holding all risk factors fixed, Radiologist89 has the largest coefficient and Radiologist34 has the lowest coefficient towards recalling decision, supposing the missing Radiologist13 as the benchmark. So according to our results, among these five doctors, Radiologist89 is the most conservative one in recalling patients while Radiologist34 is the least conservative one.
+
+```{r echo=FALSE}
+library(knitr)
+C = matrix(c(-0.488850478,0.214701873,0.316739276,0.034685465),nrow=1,ncol=4,byrow=TRUE)
+D = c('Radiologist34','Radiologist66','Radiologist89','Radiologist95')
+kable(C, caption='Table 2: Coefficients of different radiologists in Model 4', align= 'c', col.names = D)
+```
+
+
+## Second Question
+In order to find out the important risk factors for the model of recalling the patients, we build six different models for radiologists' decision making. Then we randomly split the dataset into a training dataset and a test dataset for 100 times and calculate the average out-of-sample RMSE for each model. The model with the minimal average RMSE is the best model and the explanatory variable except for recall variable in that model is the important risk factor we want to find. 
+
+Model 1: ___cancer ~ recall___
+
+Model 2: ___cancer ~ recall + age___
+
+Model 3: ___cancer ~ recall + history___
+
+Model 4: ___cancer ~ recall + symptoms___
+
+Model 5: ___cancer ~ recall + menopause___
+
+Model 6: ___cancer ~ recall + density___
+
+The results of the average RMSE see Table 3. We can notice that there is no difference if we add more variables to the model. Given our results of models' out-of-sample RMSE, the simplest model 1 has the best performance on prediction. We believe that this is because when radiologists decide to recall patients, they will consider all the risk factors so there is nothing we can do to improve the model of regressing cancer on recall decisions. To make sure Model 1 is the best, we compute these six models' AIC, listing in Table 4. That Model 1 has the lowest AIC of -430.6 confirmed our conclusion that it is the best model. The simpler the model is for prediction, sometimes the better.
+
+```{r echo=FALSE}
+library(knitr)
+C = matrix(c(0.3729068,0.5246040,0.3763294,0.3953364,0.4018400,0.4699520),nrow=1,ncol=6,byrow=TRUE)
+D = c('Model 1','Model 2','Model 3','Model 4','Model 5', 'Model 6')
+kable(C, caption='Table 3: RMSE of different models', align= 'c', col.names = D)
+```
+
+
+```{r echo=FALSE}
+library(knitr)
+C = matrix(c(-430.6,-429,-429.3,-428.6,-425.5,-430.5),nrow=1,ncol=6,byrow=TRUE)
+D = c('Model 1','Model 2','Model 3','Model 4','Model 5', 'Model 6')
+kable(C, caption='Table 3: AIC of different models', align= 'c', col.names = D)
+```
+
+
+
+
+
+

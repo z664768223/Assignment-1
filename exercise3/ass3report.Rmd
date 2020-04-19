@@ -1,0 +1,124 @@
+---
+title: "Ass3 Pro1"
+author: "Xiaoyu Liu, Yihao Zhang"
+date: "4/18/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(tidyverse)
+library(fpp2)
+library(gamlr) 
+library(randomForest)
+greenbuilding <- read.csv("greenbuildings.csv",header=TRUE)
+```
+
+**Overview**
+
+Over the past few years, the general public has paid increasingly close attention to whether a company is taking the role of contributing to society, especially from the perspective of the environment. In commercial real estate, issues of eco-friendliness are intimately tied up with ordinary decisions about how to allocate capital. Will investing in an eco-friendly building increase company’s rental income? How to predict the rental income? 
+
+**Data modeling and Analysis**
+
+Before fitting the data with a predictive model, we performed necessary data cleaning.
+
+* Removed the variable **LEED** and **Energystar** and use one single variable **green_rating** to represent whether a building is econ-friendly or not.
+* Removed the **construction property ID** and the variable **cluster** which is not only a building's identity but can also be indentified by regional employment growth rate, annual precipitation and cluster rent.
+* Removed Variables **cd.total_07**, **hd.total_07** and use **total_dd_07** to represent both variables.
+* Performed log transformation on all price and unit factors to normalize the data (**Rent**, **size**, **Gas_Costs**, **Electricity_Costs**, **cluster_rent** and **total_dd_07**.
+
+```{r, include=FALSE}
+GB <- greenbuilding %>%
+  select(Rent, everything()) %>%
+  select(-CS_PropertyID,-Energystar,-LEED,-cd_total_07,-hd_total07,-cluster)
+
+GreenB <- GB %>%
+  mutate(Rent=log(Rent),
+         size=log(size),
+         leasing_rate = leasing_rate/100,
+         cluster_rent = log(cluster_rent),
+         Gas_Costs=log(Gas_Costs),
+         Electricity_Costs=log(Electricity_Costs),
+         total_dd_07 = log(total_dd_07)
+         ) 
+
+GreenB <- na.omit(GreenB)
+```
+
+Next, we used LASSO analysis method with 5-fold cross validation to filter the unnecessary variables and select the significant explanatory variables since this method penalizes the size of the parameters. To do so, we find the $log(\lambda_{min})$ value that generated the lowest **MSE** during the 5-fold cross validation process, including the consideration of substantial size parameter penalties. Then, we selected this value of $\lambda$ to build our model. The model is as follow:
+
+```{r, include=FALSE}
+x <- model.matrix(Rent ~ .,GreenB)[,-1]
+y <- GreenB$Rent
+
+set.seed(1)
+K = 5 
+# cross validated lasso (verb just prints progress)
+cvl1 = cv.gamlr(x, y, nfold=K)
+
+# plot the out-of-sample deviance as a function of log lambda
+```
+
+```{r, include=FALSE}
+coef(cvl1,select="min")
+```
+
+$$
+log(y)= -0.71802+0.02863log({f_1})-0.10412log({f_2})+0.01428log({f_3})+0.97392log({f_4})+0.02297x_1+0.0004x_2\\
+-0.00060x_3-0.00752x_4+0.08722x_5+0.02369x_6+0.01853x_7-0.02257x_8+0.01056x_9
+$$
+where the variables are defined as follows:
+
+* $y$ is the rent charged to tenants in the building, in dollars per square foot per calendar year.
+* ${f_1}$ is the total square footage of available rental space in the building.
+* ${f_2}$ is the measure of how much natural gas costs in the building's geographic region.
+* ${f_3}$ is the measure of how much electricity costs in the building's geographic region.
+* ${f_4}$ is the average rent per square-foot per calendar year in the building's local market.
+* ${x_1}$ is the fraction of the building's available space currently under lease.
+* ${x_2}$ is the height of the building in stories.
+* ${x_3}$ is the age of the building in years.
+* ${x_4}$ is whether the building has undergone substantial renovations during its lifetime.
+* ${x_5}$ is the indicators for Class A buildings.
+* ${x_6}$ is the indicators for Class B buildings.
+* ${x_7}$ is an indicator for whether the building is either LEED- or EnergyStar-certified.
+* ${x_8}$ is an indicator as to whether the rent is quoted on a ``net contract'' basis.
+* ${x_9}$ is an indicator of whether at least one of the following amenities is available on-site.
+
+Finally, we performed a random forest analysis for variable importance measurement. This method can help us to verify the variables included in our predictive model is essential. From our LASSO prediction model, we generated 13 variables plus one constant.
+
+```{r, include=FALSE}
+GB1 <- greenbuilding %>%
+  select(Rent, everything()) %>%
+select(-CS_PropertyID,-Energystar,-LEED,-cd_total_07,-hd_total07,-cluster)
+  
+
+GB1 <- GB %>%
+  mutate(Rent=log(Rent),
+         size=log(size),
+         leasing_rate = leasing_rate/100,
+         cluster_rent = log(cluster_rent),
+         Gas_Costs=log(Gas_Costs),
+         Electricity_Costs=log(Electricity_Costs),
+         total_dd_07 = log(total_dd_07)
+         ) 
+
+GB1 <- na.omit(GB1)
+
+
+x <- model.matrix(Rent ~ .,GB1)[,-1]
+y <- GB1$Rent
+forest1 = randomForest(x=x, y=y)
+```
+```{r, echo = FALSE}
+varImpPlot(forest1,main="Variable Importance",n.var=16)
+```
+
+From the variable importance plot, we can see that among the 8 most important variables that were defined by random forest analysis, 7 has been taken account in our predictive model. **total_dd_07** has not been selected for our model is because for each cluster, the value of **total_dd_07** will be the same for all buildings among that cluster, and cluster can be defined by **cluster_rent**. **empl_gr** and **Precipitation** were selected off from our model due to the same reason. So, we would like to suggest that our model is making a precise prediction.
+
+## Conclusion
+
+Now we will quantify the average change in percentage term of rental income per square foot associated with green certification, holding other features of the building constant.
+
+Based on our model, for buildings to be qualified as eco-friendly, the average rental income per square foot is expected to increase $e^{0.01853}=1.02%$. This increase is relatively small, and from economic perspectives, we would not suggest the company to make invest in a new eco-friendly building since it will only generate a tiny amount of increase in rental income.
+
+

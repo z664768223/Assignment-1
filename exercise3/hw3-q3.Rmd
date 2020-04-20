@@ -1,0 +1,97 @@
+---
+title: hw3-q3
+author: XL
+date: 04/19
+output: md_document
+---
+# Exercise 3 - Question 3
+### Xiaoyu Liu, Yihao Zhang
+
+The data set that we used for this question contains information on 11 chemical properties of 6500 different bottles of wine. In addition, two other variables, the color of wine and the quality of wine are also recorded. What we are gonna do is to apply both PCA and clustering method to this data set and then compare the results to decide which one is better for differing the wine color and which one is better for differing the wine quality.
+
+### 1. Wine color
+#### Clustering Model:
+For the wine color problem, since we know for sure that there are only two color kinds in wine so we can just assume K = 2 in this case. Then we scale and center the data and extract the centers and scales from the rescaled data. After these steps, we can run k-means with 2 clusters and 25 starts. The correlation between total.sulfur.dioxide and density is only 0.03239451. Besides, these two characteristics are very typical presentations for wines. Therefore, we decide to choose these two variables for the visualization of our clustering models. The qpplot for our wine color clustering model is below:
+```{r include=FALSE}
+library(tidyverse)
+library(LICORS)
+library(ISLR)
+library(foreach)
+library(mosaic)
+library(GGally)
+wine <- read.csv("C:/Users/Lydia Liu/Desktop/data mining/wine.csv.txt")
+X = wine[,1:11]
+X = scale(X, center=TRUE, scale=TRUE)
+mu = attr(X,"scaled:center")
+sigma = attr(X,"scaled:scale")
+# clustering
+clust1 = kmeans(X, 2, nstart=25)
+```
+```{r echo=FALSE}
+qplot(wine$density,wine$total.sulfur.dioxide, data=wine, shape=factor(clust1$cluster), col=factor(wine$color))
+```
+
+
+In order to check how well it explains, we calculate the accuracy rate. Using the following confusion matrix, we could get the accuracy rate is (1575+4830)/6497=98.58%.
+```{r echo=FALSE}
+library(knitr)
+A = matrix(c(1,1575,68,2,24,4830),nrow=2,ncol=3,byrow=TRUE)
+B = c('Clusters','Red','White')
+kable(A, caption='Table 1: Confusion matrix for clustering model---wine color', align= 'c', col.names = B)
+```
+
+#### PCA Model:
+Secondly, we tried the PCA model for differing red wine from white wine. Using the same scaled and centered data, the qpplot for our wine color PCA model is below:
+```{r include=FALSE}
+pc = prcomp(X, scale=TRUE)
+summary(pc)
+loadings = pc$rotation
+scores = pc$x
+```
+```{r echo=FALSE}
+qplot(scores[,1], scores[,2], color=wine$color, xlab='Component 1', ylab='Component 2')
+```
+
+Similarly, in order to check how well it explains, we calculate the accuracy rate. Using the following confusion matrix, we could get the accuracy rate is (4814+1572)/6497=98.29%.
+```{r echo=FALSE}
+library(knitr)
+A = matrix(c(1,1572,84,2,27,4814),nrow=2,ncol=3,byrow=TRUE)
+B = c('Clusters','Red','White')
+kable(A, caption='Table 2: Confusion matrix for PCA model---wine color', align= 'c', col.names = B)
+```
+
+As we can see from the accuracy rates, the clustering model is slightly better for the wine color problem. Let's try both models for the wine quality problem in the following.
+
+### 2. Wine quality
+#### Clustering Model:
+Becasue there are only 3~9 seven different scores of wine quality, we pick K = 7 for the clusters number. We run a clustering model with seven clusters and 50 starts.
+
+In order to check how well it explains, we calculate the accuracy rate. Using the following confusion matrix, we could get the accuracy rate is (7+63+471+259+190+0+4)/6497=15.36%.
+```{r echo=FALSE}
+library(knitr)
+A = matrix(c(1,7,24,648,640,122,22,0,2,5,63,453,545,133,25,1,3,6,63,471,346,43,2,0,4,4,15,193,259,140,14,0,5,2,26,266,475,190,31,0,6,2,2,30,19,2,0,0,7,4,23,77,552,449,99,4),nrow=7,ncol=8,byrow=TRUE)
+B = c('Clusters','3','4','5','6','7','8','9')
+kable(A, caption='Table 3: Confusion matrix for Clustering Model---wine quality', align= 'c', col.names = B)
+```
+
+#### PCA Model:
+Later, we tried the PCA model for differing high-quality wine from low-quality wine. Using the same scaled and centered data, the qpplot for our wine quality PCA model is below:
+```{r include=FALSE}
+pc2 = prcomp(X, scale=TRUE)
+loadings = pc2$rotation
+scores = pc2$x
+```
+```{r echo=FALSE}
+qplot(scores[,1], scores[,2], color=factor(wine$quality),xlab='Component 1', ylab='Component 2')
+```
+
+
+Similarly, in order to check how well it explains, we calculate the accuracy rate. Using the following confusion matrix, we could get the accuracy rate is (7+2+199+266+476+212+96+0)/6497 = 19.36%.
+```{r echo=FALSE}
+library(knitr)
+A = matrix(c(1,7,64,464,347,43,2,0,2,1,2,22,9,1,0,0,3,4,15,199,266,140,14,0,4,5,60,442,476,110,26,1,5,4,26,244,487,212,35,0,6,2,21,102,609,447,96,4,7,7,28,665,642,126,20,0),nrow=7,ncol=8,byrow=TRUE)
+B = c('Clusters','3','4','5','6','7','8','9')
+kable(A, caption='Table 4: Confusion matrix for PCA Model---wine quality', align= 'c', col.names = B)
+```
+
+In conclusion, the clustering model is more accurate for the wine color problem while the PCA model will be better for the wine quality problem. Because clustering assumes that each data point is a member of only one cluster and clusters are mutually exclusive, every bottle of wine has its certain color so clustering will be an appropriate model for this problem. Moreover, the wine quality problem is more complicated and can be affected by many different factors. PCA assumes that each data point is like a combination of multiple basic "ingredients". PCA is useful for compression, denoising, plotting, and making sense of data sets that initially seem too complicated to understand. So PCA is better for the wine quality problem.

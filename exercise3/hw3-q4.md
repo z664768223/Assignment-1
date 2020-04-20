@@ -1,4 +1,4 @@
-Exercise 3 - Question 3
+Exercise 3 - Question 4
 =======================
 
 ### Xiaoyu Liu, Yihao Zhang

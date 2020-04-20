@@ -1,4 +1,4 @@
-***Model 1:*** ***log(*y*)=
+***Model 1:*** *log*(*y*)=
 -0.71802+0.02863log(*f*<sub>1</sub>)-0.10412log(*f*<sub>2</sub>)+0.01428log(*f*<sub>3</sub>)+0.97392log(*f*<sub>4</sub>)+0.02297*x*<sub>1</sub>+0.0004*x*<sub>2</sub>\
 -0.00060*x*<sub>3</sub>-0.00752*x*<sub>4</sub>+0.08722*x*<sub>5</sub>+0.02369*x*<sub>6</sub>+0.01853*x*<sub>7</sub>-0.02257*x*<sub>8</sub>+0.01056*x*<sub>9</sub>***
 

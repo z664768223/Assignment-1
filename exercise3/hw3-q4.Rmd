@@ -4,7 +4,7 @@ author: XL
 date: 04/19
 output: md_document
 ---
-# Exercise 3 - Question 3
+# Exercise 3 - Question 4
 ### Xiaoyu Liu, Yihao Zhang
 
 The data set we used for this part is a Twitter post collection of a group of followers over seven days in June 2014. Each tweet was categorized based on its content using a pre-specified scheme of 36 different categories, each representing a broad area of interest. What we need to do is to identify some interesting market segments that appear to stand out in the social-media audience.

@@ -1,1 +1,1 @@
-## Xiaoyu Liu, Yihao Zhang
+## Yihao Zhang

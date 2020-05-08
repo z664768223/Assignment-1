@@ -1,0 +1,402 @@
+---
+title: "Final Project"
+author: "Yihao Zhang"
+date: "4/30/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(kableExtra)
+library(tidyverse)
+library(tseries)
+library(fpp2)
+library(caret)
+library(ggplot2)
+library(knitr)
+library(rmarkdown)
+```
+
+
+#### Abstraction
+
+
+This study is aimed to find the in changes in people's travel behavior in responses to the fluctuations of gasoline prices in Austin city to provide a more comprehensive understanding of the net effects of gasoline prices on transit ridership. We used both static regression and dynamic regression anlaysis to fitted the most accurate predictive model for transit ridership and use that model to determine the estimate effect of change in gasoline price on transit ridership. 
+
+The main finding of this study is:
+
+* The price elasticity of gasoline on the demand of transit ridership is 0.042, which indicates a 0.42 percent increase in ridership in response to a 10 percent increase in the current gasoline prices.
+
+This findings provides  insight and guidance for how transit agencies can plan and prepare for accommodating higher transit travel needs of the public.
+
+### Introduction
+
+Due to the outbreak of COVID-19 as a global pandemic, oil storage facilities were reaching their limits. On April 20, 2020, U.S. crude oil prices dropped by almost 300 percent to turn negative for the first time in history and reach negative $37.63 a barrel.
+
+Retail gasoline is a consumer product that is refined from crude oil and its closely related to our daily life. It is a complementary good of motor vehicles, which is one of the main tools for people's daily transportation. The recent dramatical fluctuations of crude oil prices have affected the price of retail gasoline, and this brought the interest in analyzing how people's travel behavior responses to the fluctuations of gasoline prices. Will an increase in retail gasoline price affect people's travel behavior by increasing regional demand on public transportation as an effort to reduce travel expenditure? If so, a comprehensive understanding of how people's demand for public transportation changes in response to a change in gasoline price can provide an important guideline to public transit agencies on capacity management and pricing strategy during a period when gasoline price fluctuates.
+
+Based on this scope, this analysis will use the panel data of public transportation ridership and retail gasoline price from the Austin area from 2016 to 2020 along with a control group of specific factors to estimate the short-run effect of change in gasoline prices on transit ridership.
+
+```{r, include=FALSE}
+#Data formating
+### gas price
+gasprice <- read.csv("weeklygasprice.csv")
+#compute monthly average gas pirce
+gasprice$Date<- (as.Date(gasprice$Date,format = "%Y/%m/%d"))
+gasprice <- gasprice %>%
+  mutate(yearmonth = format(Date,"%Y-%m"))
+
+monthprice <- gasprice %>%
+  group_by(yearmonth) %>%
+  summarize(averageprice=(mean(Gasolineprices)))
+
+### metro ridership
+
+metroride <- read.csv("metroride.csv")
+metroride$Date<- as.Date(metroride$MONTH.YEAR,format = '%Y-%m-%d')
+
+monthride <- metroride %>%
+  group_by(Date,DAY.TYPE) %>%
+  summarize(rideship = (sum(SUM.RIDERSHIP.AVERAGE))) %>%
+  arrange(Date) %>%
+  na.omit() %>% 
+  mutate(yearmonth = format(Date,"%Y-%m"))
+
+### weather data
+weather <- read.csv("weather.csv")
+weather$date <- as.Date(weather$date,format = '%Y-%m-%d')
+weather <- weather %>%
+  mutate(yearmonth = format(date,"%Y-%m"))
+
+### unemployment rate
+
+unrate <- read.csv("unemprate.csv")
+unrate$Date <- as.Date(unrate$Date,format = '%Y-%m-%d')
+unrate <- unrate %>%
+  mutate(yearmonth = format(Date,"%Y-%m")) %>%
+  mutate(unemp_rate = Value) %>%
+  select(unemp_rate, yearmonth) 
+
+### combine all table together
+ridedata1 <- metroride %>%
+  group_by(Date) %>%
+  summarize(rideship = (sum(SUM.RIDERSHIP.AVERAGE))) %>%
+  arrange(Date) %>%
+  na.omit() %>% 
+  mutate(yearmonth = format(Date,"%Y-%m"))
+
+dydata1 <- ridedata1 %>%
+  left_join(monthprice, by=("yearmonth")) %>%
+  na.omit(mydata1) 
+
+dydata1 <- dydata1 %>%
+  left_join(weather, by=("yearmonth"))%>%
+  left_join(unrate,by=("yearmonth"))
+
+dydata1 <- dydata1 %>%
+  select(-date,-yearmonth) %>%
+  mutate(rideship=log(rideship),
+         averageprice=log(averageprice),
+         AvgTemp = log(AvgTemp),
+         TotalPrecip = log(TotalPrecip))
+
+```
+
+### Methodology
+
+This analysis used both static linear regression model and a dynamic regression model for metro ridership estimation. The first model estimated the contemporaneous relationship of metro ridership and relevant external variables, and the second model takes both the effect of past observations on metro ridership and relevant external variables to improve the forecast accuracy. The aim here is to estimate the elasticity of metro ridership to gasoline price and to specify; this study is predicting the percentage change in metro ridership in response to one percentage change in retail gasoline price.
+
+Table 1 illustrates the information of dependent and independent variables included in both regression analysis as well as the source of data. The range of the data site for all variables is from October 2016 to February 2020 monthly.
+
+```{r,include=FALSE}
+table1 <- data.frame(
+  Variable = c("Metro Ridership","Retail Gasoline price","Temperature","Precipitation","Unemployment"),
+  Feature = c("Dependent Variable","Independent Variable","Independent Variable","Independent Variable","Independent Variable"),
+  Description = c("Measured the sum of Monthly ridership with MetroAccess, MetroBus, MetroExpress, MetroRail and MetroRapid in Austin City, implemented log transformation afterwards.","Used Texas regular conventional retail gasoline price to represent the gasoline price in Austin City. Raw Data acquired is in Weekly basic, transformed into average monthly data, implemented log transformation afterwards.","Measured the monthly average temperature (Fahrenheit) in Austin City, implemented log transformation afterwards.","Measured the monthly total precipitation in inch in Austin City, implemented log transformation afterwards.","Measured the monthly unemployment rate in Austin City."),
+  Source = c("U.S. Energy Information administration","Capital Metropolitan Transportation Authority","National Weather Service Forecast","National Weather Service Forecast","The Bureau of Labor Statistics")
+)
+
+```
+
+```{r, echo = FALSE}
+kable(table1,"latex", booktabs = T) %>%
+  kable_styling(full_width = F) %>%
+  column_spec(1, bold = T, border_right = T,width = "8em") %>%
+  add_header_above(c("Table 1: Dependent and Independent Variables Used in Studies as well as Their Specifications. "= 4))%>%
+  column_spec(3, width = "24em")%>%
+  column_spec(2, width = "6em") %>%
+  column_spec(4, width = "8em") 
+
+```
+
+As seen in Table 1, in addition to Metro Ridership and Retail Gasoline Price, Temperature, Precipitation, and unemployment rate have been considered as explanatory variables. Temperature and Precipitation are weather indicators that can strongly affect people's travel behavior. In mild sunny days, more people will be more willing to walk to and from their destinations while on rainy days, more people will prefer to take public transportations. Unemployment is another substantial explanatory variable; a lower unemployment rate means there will be more people who have chances to take the metro to work. 
+
+Besides these 4 explanatory variables, serval other external variables have been considered to involve in the study and were dropped out later. These variables include metro fare, average household income, and metro service rating.
+Metro fare and average household income were dropped from the study because both variables remain stable from 2016-2020 every month. Metro service rating has not been considered due to the non-existence of an official data report.
+
+The following sub-sections describe the regression modeling process within the framework of both static data and panel data analysis for transit ridership estimation.
+
+### 1. Static Regression Model
+
+Here, we are modeling a contemporaneous relationship between Metro Ridership and other independent variables with the assumption that the change among the independent variables will have an immediate effect on the dependent variable (metro ridership).
+
+Before building the prediction model, the whole dataset was separated into a training group and a testing group. The training group counts for 80% of the observations recorded from October 2016 to May 2019, and the testing group counts for the rest 20% observations, which is from June 2019 to February 2020. 
+
+Next, two-way interaction automatically iterative model selection method is implemented for our model selection. Given the result, models generated from forwarding Selection and Stepwise Selection provided the same information criteria.
+
+```{r, include = FALSE}
+###  static model
+lmdata <- dydata1[,-1]
+lmtr <- data.frame(lmdata[1:32,])
+lmte <- data.frame(lmdata[33:41,])
+
+# forward selection -152.42
+smodel1 <- lm(rideship ~ 1, data = lmtr)
+lm_forward = step(smodel1, direction='forward',
+                  scope=~(averageprice+AvgTemp+TotalPrecip+unemp_rate)^2)
+
+# backward selection -149.86
+smodel2 <- lm(rideship ~ (averageprice+AvgTemp + TotalPrecip + unemp_rate)^2, data = lmtr)
+step(smodel2, direction = "backward" )
+
+# stepwise selection -152.42
+smodel3 <- lm(rideship ~ averageprice+AvgTemp + TotalPrecip + unemp_rate, data = lmtr)
+step.model3<- step(smodel3, direction = 'both', scope=~(.)^2)
+
+#best static model
+lmbest1 <- lm(rideship ~ averageprice+ AvgTemp + TotalPrecip, data = lmtr)
+lmbest2 <- lm(rideship ~ averageprice+ AvgTemp + TotalPrecip + unemp_rate + AvgTemp, data = lmtr)
+```
+
+
+* Model1 : 
+$log(y) = 14.350 + 0.142log({x_1}) +0.058log({x_2}) -0.006log({x_3}), AIC = -152.42$
+
+* Model2 :
+$log(y) = 14.507 - 0.045log({x_1}) +0.123log({x_2}) -0.008log({x_3}) - log({x_4}), AIC = -152.42$
+
+where,
+
+$y$ denotes metro ridership in Austin area.
+
+${x_1}$ denotes average retail gasoline price in Austin area.
+
+${x_2}$ denotes average monthly temperature.
+
+${x_3}$ denotes average monthly total precipitation.
+
+${x_4}$ denotes average monthly average unemployment rate.
+
+Then, out-of-sample estimation accuracy was computed, and the result is in table 2.
+
+```{r, include = FALSE}
+lmte1 <- predict(lmbest1, lmte)
+# mape and rmse
+prediction1 <- data.frame(cbind(actuals=lmte$rideship,predicteds = lmte1))
+mape1 <- mean(abs((prediction1$predicteds - prediction1$actuals))/prediction1$actuals)*100
+rmse1 <- sqrt(mean((prediction1$predicteds - prediction1$actuals)^2))
+
+lmte2 <- predict(lmbest2, lmte)
+prediction2 <- data.frame(cbind(actuals=lmte$rideship,predicteds = lmte2))
+mape2 <- mean(abs((prediction2$predicteds - prediction2$actuals))/prediction2$actuals)*100
+rmse2 <- sqrt(mean((prediction2$predicteds - prediction2$actuals)^2))
+
+# format the table
+table2 <- matrix(c(mape1,rmse1,mape2,rmse2),ncol=2,byrow=TRUE)
+colnames(table2) <- c("MAPE","RMSE")
+rownames(table2) <- c("Model 1","Model 2")
+table2 <- as.table(table2)
+```
+
+```{r, echo = FALSE}
+kable(table2) %>%
+  kable_styling(full_width = F) %>%
+  column_spec(1, bold = T, border_right = T) %>%
+  add_header_above(c("Table 2: Out of Sample Prediction Accuracy  "= 3))
+```
+
+As seen in Table 2, Model 1 made a better out of sample accuracy performance; it generated a lower RMSE and MAPE. We can conclude that Model 1 is our best static regression model for metro ridership estimation.
+
+### 2. Dynamic Regression Model
+
+Figure 1 shows the relationship between metro ridership - representing the sum of ridership with MetroAccess, MetroBus, MetroExpress, MetroRail, and MetroRapid and average retail gasoline prices in Austin City. 
+
+```{r, echo=FALSE, warning=FALSE}
+plotride <- monthride %>%
+  group_by(Date) %>%
+  summarize(rideship = sum(rideship)) 
+
+min <- as.Date("2016-10-01")
+max <- as.Date("2020-02-20")
+
+scaleFactor <- max(plotride$rideship)/ max(gasprice$Gasolineprices)
+
+z1 <- ggplot() +
+  geom_line(data = gasprice,aes(x=Date,y=(scaleFactor*Gasolineprices)),color = "#00AFBB") +
+  geom_line(data = plotride, aes(x=Date, y=(rideship)), color = "#FC4E07") +  
+  scale_y_continuous(name="Metro Ridership", sec.axis=sec_axis(~./scaleFactor, name="Gasoline Price, $")) +
+  theme(
+    axis.title.y.left=element_text(color="#FC4E07"),
+    axis.text.y.left=element_text(color="#FC4E07"),
+    axis.title.y.right=element_text(color="#00AFBB"),
+    axis.text.y.right=element_text(color="#00AFBB")) +
+  labs(subtitle="Figure 1: Retail Gasoline Price and Metro Ridership in Austin Area")
+
+z1+ scale_x_date(limits = c(min, max))
+```
+
+These two variables follow a similar trend pattern during a certain period. Furthermore, in fact, due to information asymmetry, it is reasonable to suggest that the effect of the gasoline price change on ridership is inherently temporal since people will not be notified simultaneously when the gasoline price changes. So, here we are going to perform a dynamic regression analysis to examining temporal and lagged effects of changes in variables.
+
+Here we have equation 1 which express the specification that the model I will fit using panel data with a group of control variables.
+
+equation1:
+
+${y_{t}} = {a_0} + {\beta}{x_{t}} + {n_t} + \epsilon_{t}$
+
+where,
+
+${y_{t}}$ denotes metro ridership in Austin area at time t.
+
+${a_0}$ denotes the intercept parameter.
+
+${\beta}$ are vector of slope parameters associated with external influential factors.
+
+${x_t}$ is the vector of external influential factors that include gasoline price, average temperature, total precipitation, unemployment rate in Austin area at time t.
+
+${n_t}$ denotes the stochastic error term corresponding to the regression for the mode. 
+
+$\epsilon_{t}$ denotes error from the ARIMA model.
+
+After implemented the same training and testing set separation method that used for the static model, that the training set counts for observations recorded from October 2016 to May 2019, and the testing set counts for observations from June 2019 to February 2020. Stationarities of the training series has been tested to be true afterward, and several dynamic models have been fitted to the series.
+
+```{r,include=FALSE}
+########### dynamic model analysis
+y1 <- ts(dydata1[,2], start = c(1,10), frequency = 12)
+x1 <- dydata1 %>% select(-Date,-rideship)
+
+y1.tr <- window(y1, end = c(4,5))
+y1.te <- window(y1, start = c(4,6), end=c(5,2))
+y1.a  <- window(y1, start = c(1,10), end=c(5,2))
+
+x1.tr <- as.matrix(x1[1:32,])
+x1.te <- as.matrix(x1[33:41,])
+x1.a  <- as.matrix(x1[1:41,])
+
+tsdisplay(y1.tr)
+y1.tr %>% diff() %>% tsdisplay()
+y1.tr %>% diff() %>% adf.test()
+
+#first model
+m.RA1 <- Arima(y1.tr, order = c(0,1,0), seasonal=c(1,0,0),xreg=x1.tr)
+summary(m.RA1)
+residuals(m.RA1,type="regression") %>% diff() %>% tsdisplay()
+checkresiduals(m.RA1)
+
+m.RA2 <- Arima(y1.tr, order = c(0,1,1), seasonal=c(1,0,0),xreg=x1.tr)
+summary(m.RA2)
+residuals(m.RA2,type="regression") %>% diff() %>% tsdisplay()
+checkresiduals(m.RA2)
+
+m.RA3 <- Arima(y1.tr, order = c(0,1,2), seasonal=c(1,0,0),xreg=x1.tr)
+summary(m.RA3)
+residuals(m.RA3,type="regression") %>% diff() %>% tsdisplay()
+checkresiduals(m.RA3)
+
+m.RA4 <- Arima(y1.tr, order = c(1,1,1), seasonal=c(1,0,0),xreg=x1.tr)
+summary(m.RA4)
+residuals(m.RA4,type="regression") %>% diff() %>% tsdisplay()
+checkresiduals(m.RA4)
+
+m.RA5 <- Arima(y1.tr, order = c(0,1,1), seasonal=c(1,0,1),xreg=x1.tr)
+summary(m.RA5)
+residuals(m.RA5,type="regression") %>% diff() %>% tsdisplay()
+checkresiduals(m.RA5)
+
+m.RA6 <- Arima(y1.tr, order = c(1,0,1), seasonal=c(1,0,0),xreg=x1.tr)
+summary(m.RA6)
+residuals(m.RA6,type="regression") %>% diff() %>% tsdisplay()
+checkresiduals(m.RA6)
+
+m.RA7 <- Arima(y1.tr, order = c(1,0,1), seasonal=c(0,0,0),xreg=x1.tr)
+summary(m.RA7)
+residuals(m.RA7,type="regression") %>% diff() %>% tsdisplay()
+checkresiduals(m.RA7)
+
+### best
+m.RA8 <- Arima(y1.tr, order = c(1,0,0), seasonal=c(1,0,0),xreg=x1.tr)
+summary(m.RA8)
+residuals(m.RA8,type="regression") %>% diff() %>% tsdisplay()
+checkresiduals(m.RA8)
+```
+
+
+Next, we select model 3 as our best prediction model using the dynamic regression method, which provides the lowest information criteria.
+
+```{r,include=FALSE}
+m.RA <-  Arima(y1.tr, order = c(1,0,0), seasonal=c(1,0,0),xreg=x1.tr)
+summary(m.RA)
+residuals(m.RA,type="regression") %>% diff() %>% tsdisplay()
+checkresiduals(m.RA)
+```
+
+Model 3:
+$$
+log(y_t)= 14.061 + 0.0422log(x_{1t})+0.151log(x_{2t})-0.001log(x_{3t})-0.038log(x_{4t})+{n_t}
+$$
+$$
+{n_t}  = 0.681{n_{t-1}} + 0.887{n_{t-12}}-0.604{n_{t-13}}+\epsilon_{t}
+$$
+where,
+
+${x_{1t}}$ denotes average retail gasoline price in Austin area at time t.
+
+${x_{2t}}$ denotes average monthly temperature at time t.
+
+${x_{3t}}$denotes average monthly total precipitation at time t.
+
+${x_{4t}}$denotes average monthly average unemployment rate at time t.
+
+```{r, include=FALSE}
+fra1 <- forecast(m.RA, xreg = x1.te)
+accuracy(fra1, y1.te)
+```
+
+Then, we compute this model's out-of-sample accuracy performance. It generates a MAPE of 0.27 and a RMSE of 0.045, comparing to our Model 2, Model 3 provides a better of sample accuracy and we conclude that model 3 is our best prediction model for metro ridership.
+
+### Results
+
+This section presents results from a series of panel data using regression analyses of our best prediction model. After performed log-log transformation on both metro ridership and gasoline price, the estimated coefficient on gasoline can be interpreted as the price ealsticity of gasoline on metro ridership. Here the coefficient is 0.042, which tells that a 10% increase in gasoline price in Austin city is expected to cause metro ridership to increase by 0.42%. This result is consistent with our hypothesis and indicate that the increase in gasoline price haas a positive effect on metro ridership demand, people change their travel behavior by increasing regional demand on public transportation as an effort to redeuce travel expenditure in response to the increase in gasoline price. But the senstivity of this effect is low. This could be explained that people do not always notify the small level of  changes in gasoline price and it is not possible for them simultaneously receive the information of the change in gqsoline price. And most people will notify the change in gasoline pirce only when the difference is huge.
+
+Meanwhile, the coefficient on our control variables have the same as we expected. The positive effect of temperature, the negative effect of precipitation and the negative effect of unemployment on metro ridership. The estimated effect on all explanatory variables has listed in table 3:
+
+
+```{r, include = FALSE}
+table3 <- data.frame(
+  variable =c("Constant","Log of  monthlygasoline price","log of average monthly temperature",
+              "log of average monthly total precipitation","monthly unemployment rate"),
+  coefficient = c("+14.061","+0.0422","+0.151","-0.001","-0.038")
+)
+```
+
+
+```{r, echo = FALSE}
+kable(table3) %>%
+  kable_styling(full_width = F) %>%
+  column_spec(1, bold = T, border_right = T) %>%
+  add_header_above(c("Table 3: Coefficient of Explanatory Variables"=2)) %>%
+  column_spec(1, width = "15em")
+
+```
+
+
+### Conclusion
+
+This study examined the net effects of changes in gasoline prices on metro ridership in Austin city. A 10% increase in gasoline price in Austin city is expected to cause a 0.42% of increase in  metro ridership demand. 
+
+
+
+
+
+
